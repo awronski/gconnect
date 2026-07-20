@@ -1,0 +1,36 @@
+{
+  "name": "gconnect-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "gconnect": "./dist/bin/gconnect.js"
+  },
+  "files": [
+    "dist",
+    "browser-companion",
+    "README.md",
+    "GARMIN_CONNECT_PROTOCOL.md"
+  ],
+  "scripts": {
+    "clean": "node scripts/clean-dist.mjs",
+    "build": "npm run clean && tsc -p tsconfig.json && node scripts/set-bin-mode.mjs",
+    "prepack": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test \"test/**/*.test.js\"",
+    "test:unit": "npm run build && node --test \"test/unit/**/*.test.js\"",
+    "test:e2e": "npm run build && node --test \"test/e2e/**/*.test.js\"",
+    "test:live": "npm run build && node --test \"test/live/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "lossless-json": "4.3.0",
+    "tough-cookie": "6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "6.0.3"
+  }
+}

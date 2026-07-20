@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "GConnect Browser Companion",
+  "version": "0.2.0",
+  "description": "Transfers only Garmin Connect cookies applicable to /app/home to a one-time local GConnect recovery listener.",
+  "permissions": [
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://connect.garmin.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Approve GConnect browser recovery"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/recover/*"
+      ],
+      "js": [
+        "recovery-page.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}
