@@ -18,7 +18,7 @@ interface ActivitiesListOptions {
   readonly from?: CalendarDate;
   readonly to?: CalendarDate;
   readonly limit: number;
-  readonly start: number;
+  readonly offset: number;
   readonly activityType?: string;
   readonly raw: boolean;
 }
@@ -40,11 +40,11 @@ export const activitiesListCommand = defineCommand<ActivitiesListOptions, Activi
         maximum: 100,
         description: "Maximum activities to return (1-100)."
       },
-      start: {
+      offset: {
         type: "integer",
         defaultValue: 0,
         minimum: 0,
-        description: "Zero-based activity offset."
+        description: "Zero-based offset in Garmin's native activity order."
       },
       type: { type: "string", description: "Optional Garmin activity type key." },
       raw: RAW_OPTION,
@@ -56,10 +56,14 @@ export const activitiesListCommand = defineCommand<ActivitiesListOptions, Activi
     },
     examples: [
       "gconnect activities list",
+      "gconnect activities list --offset 100 --limit 100",
       "gconnect activities list --from 2026-07-01 --to 2026-07-17 --type walking --limit 50"
     ],
     output: { dataset: "activities", shape: "collection" },
-    limitations: ["Activity filter query names are private Garmin web API behavior and may change without notice."]
+    limitations: [
+      "Activities remain in Garmin's native order; the CLI does not request or apply a separate sort.",
+      "Activity filter and pagination query names are private Garmin web API behavior and may change without notice."
+    ]
   },
   parse: parseActivitiesListOptions,
   execute: executeActivitiesList
@@ -76,7 +80,7 @@ function parseActivitiesListOptions(input: ValidatedCommandInput): ActivitiesLis
     ...(from === undefined ? {} : { from }),
     ...(to === undefined ? {} : { to }),
     limit: integerOption(input, "limit"),
-    start: integerOption(input, "start"),
+    offset: integerOption(input, "offset"),
     ...(activityType === undefined ? {} : { activityType }),
     raw: booleanOption(input, "raw")
   };
@@ -87,7 +91,7 @@ async function executeActivitiesList(
   options: ActivitiesListOptions
 ): Promise<ReturnType<typeof result<ActivitiesListData>>> {
   const query: Record<string, string | number> = {
-    start: options.start,
+    start: options.offset,
     limit: options.limit
   };
   if (options.from !== undefined) query.startDate = options.from;
@@ -104,9 +108,10 @@ async function executeActivitiesList(
     : {
         items: wire.map(normalizeActivitySummary),
         page: {
-          start: options.start,
+          offset: options.offset,
           limit: options.limit,
-          hasMore: wire.length < options.limit ? false : null
+          returned: wire.length,
+          nextOffset: wire.length < options.limit ? null : options.offset + wire.length
         }
       };
 
@@ -118,7 +123,7 @@ async function executeActivitiesList(
       ...(options.from === undefined ? {} : { from: options.from }),
       ...(options.to === undefined ? {} : { to: options.to }),
       limit: options.limit,
-      start: options.start,
+      offset: options.offset,
       ...(options.activityType === undefined ? {} : { type: options.activityType })
     },
     data,

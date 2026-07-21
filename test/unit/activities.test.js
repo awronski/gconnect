@@ -3,8 +3,10 @@ import test from "node:test";
 
 import {
   activitiesFeature,
+  activitiesCountCommand,
   activitiesGetCommand,
   activitiesListCommand,
+  decodeActivityCount,
   decodeActivityDetails,
   decodeActivityList,
   decodeActivityPolyline
@@ -17,17 +19,17 @@ const FIXTURE_ACTIVITY_TIMESTAMP = Date.parse("2026-07-17T06:00:00.000Z");
 
 const NOW = new Date("2026-07-17T12:00:00.000Z");
 
-test("activities feature exposes isolated list and get commands", () => {
+test("activities feature exposes isolated list, count, and get commands", () => {
   assert.equal(activitiesFeature.id, "activities");
   assert.deepEqual(
     activitiesFeature.commands.map((command) => command.contract.id),
-    ["activities.list", "activities.get"]
+    ["activities.list", "activities.count", "activities.get"]
   );
   assert.deepEqual(activitiesListCommand.contract.rules?.paired, [["from", "to"]]);
   assert.equal(activitiesGetCommand.contract.options["include-details"].defaultValue, true);
 });
 
-test("activities list applies defaults, normalizes IDs, and reports conservative pagination", async () => {
+test("activities list applies defaults, preserves Garmin order, and reports pagination", async () => {
   const requests = [];
   const context = fakeContext(requests, () => [
     {
@@ -60,7 +62,7 @@ test("activities list applies defaults, normalizes IDs, and reports conservative
   ]);
   assert.equal(output.meta.generatedAt, NOW.toISOString());
   assert.equal(output.meta.raw, false);
-  assert.deepEqual(output.data.page, { start: 0, limit: 20, hasMore: false });
+  assert.deepEqual(output.data.page, { offset: 0, limit: 20, returned: 1, nextOffset: null });
   assert.deepEqual(output.data.items[0], {
     id: "123456789",
     uuid: "activity-uuid",
@@ -97,7 +99,7 @@ test("activities list maps paired date and type filters and preserves decoded wi
       to: "2026-07-17",
       type: "walking",
       limit: "100",
-      start: "20",
+      offset: "20",
       raw: true
     },
     [],
@@ -128,6 +130,20 @@ test("activities list maps paired date and type filters and preserves decoded wi
   ]);
 });
 
+test("activities list preserves a full Garmin page and exposes its next offset", async () => {
+  const activities = Array.from({ length: 20 }, (_, index) => ({
+    activityId: 1000 - index,
+    startTimeLocal: `2026-07-${String(20 - index).padStart(2, "0")} 08:00:00`
+  }));
+  const output = await activitiesListCommand.invoke(
+    fakeContext([], () => activities),
+    validateCommandInput(activitiesListCommand.contract, { offset: "40", limit: "20" }, [], GLOBAL_OPTIONS)
+  );
+
+  assert.deepEqual(output.data.items.map((item) => item.id), activities.map((item) => String(item.activityId)));
+  assert.deepEqual(output.data.page, { offset: 40, limit: 20, returned: 20, nextOffset: 60 });
+});
+
 test("activities list rejects incomplete, reversed, and out-of-bound options", async () => {
   assert.throws(
     () => validateCommandInput(activitiesListCommand.contract, { from: "2026-07-01" }, [], GLOBAL_OPTIONS),
@@ -138,7 +154,7 @@ test("activities list rejects incomplete, reversed, and out-of-bound options", a
     (error) => error.code === "INVALID_OPTION"
   );
   assert.throws(
-    () => validateCommandInput(activitiesListCommand.contract, { start: "-1" }, [], GLOBAL_OPTIONS),
+    () => validateCommandInput(activitiesListCommand.contract, { offset: "-1" }, [], GLOBAL_OPTIONS),
     (error) => error.code === "INVALID_OPTION"
   );
 
@@ -151,6 +167,39 @@ test("activities list rejects incomplete, reversed, and out-of-bound options", a
   await assert.rejects(
     activitiesListCommand.invoke(fakeContext([], () => []), reversed),
     (error) => error.code === "INVALID_DATE_RANGE"
+  );
+});
+
+test("activities count returns the account-wide total and preserves raw mode", async () => {
+  const requests = [];
+  const context = fakeContext(requests, () => ({ totalCount: 2000 }));
+
+  const output = await activitiesCountCommand.invoke(
+    context,
+    validateCommandInput(activitiesCountCommand.contract, {}, [], GLOBAL_OPTIONS)
+  );
+  assert.deepEqual(requests, [{
+    path: "/gc-api/activitylist-service/activities/count",
+    query: undefined
+  }]);
+  assert.equal(output.meta.dataset, "activities.count");
+  assert.deepEqual(output.data, { total: 2000 });
+
+  const raw = await activitiesCountCommand.invoke(
+    fakeContext([], () => ({ totalCount: 2000, futureField: "preserved" })),
+    validateCommandInput(activitiesCountCommand.contract, { raw: true }, [], GLOBAL_OPTIONS)
+  );
+  assert.deepEqual(raw.data, { totalCount: 2000, futureField: "preserved" });
+});
+
+test("activities count rejects malformed totals", () => {
+  assert.throws(
+    () => decodeActivityCount({ totalCount: -1 }),
+    (error) => error.code === "PROTOCOL_CHANGED"
+  );
+  assert.throws(
+    () => decodeActivityCount({ totalCount: 1.5 }),
+    (error) => error.code === "PROTOCOL_CHANGED"
   );
 });
 

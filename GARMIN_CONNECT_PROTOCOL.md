@@ -640,7 +640,19 @@ Observed request:
 - response: JSON array;
 - array length: 20 for the sampled first page.
 
-`start` is a zero-based offset in the observed first request. End-of-pagination behavior was not traced; the safe derived rule is to stop when the returned array length is less than `limit`, with a configurable maximum page count.
+`start` is a zero-based offset in the observed first request. The CLI exposes it as `--offset`, preserves the
+array order returned by Garmin, and does not request or apply a separate sort. End-of-pagination behavior was
+not traced; a page shorter than `limit` is treated as final, while a full page reports the next offset.
+
+#### Count activities
+
+```http
+GET /gc-api/activitylist-service/activities/count
+```
+
+The source-inspected and mock-verified response is an object containing a non-negative safe-integer
+`totalCount`. This count is account-wide. Date/type filter behavior is unverified, so the CLI exposes a separate
+unfiltered `activities count` command instead of attaching a potentially misleading total to filtered pages.
 
 Representative activity fields observed:
 
@@ -1243,7 +1255,8 @@ gconnect auth status [--verify]
 gconnect auth recover [--open] [--timeout 60..900]
 gconnect auth disconnect
 
-gconnect activities list [--start N] [--limit 1..100] [--from DATE --to DATE] [--type KEY]
+gconnect activities count
+gconnect activities list [--offset N] [--limit 1..100] [--from DATE --to DATE] [--type KEY]
 gconnect activities get <activity-id> [--include-details=false] [--include-polyline]
 
 gconnect health sleep (--date DATE | --from DATE --to DATE)

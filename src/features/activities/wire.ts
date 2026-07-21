@@ -9,6 +9,7 @@ import {
 } from "../../core/json.js";
 
 export const ACTIVITIES_LIST_ENDPOINT = "/gc-api/activitylist-service/activities/search/activities" as const;
+export const ACTIVITIES_COUNT_ENDPOINT = "/gc-api/activitylist-service/activities/count" as const;
 export const ACTIVITY_DETAILS_ENDPOINT = "/gc-api/activity-service/activity/{activityId}/details" as const;
 export const ACTIVITY_POLYLINE_ENDPOINT = "/gc-api/activity-service/activity/{activityId}/polyline/full-resolution/" as const;
 
@@ -27,6 +28,11 @@ export interface ActivityListItemWire {
   readonly maxHR?: number;
   readonly deviceId?: string | number;
   readonly hasPolyline?: boolean;
+  readonly [additionalField: string]: unknown;
+}
+
+export interface ActivityCountWire {
+  readonly totalCount: number;
   readonly [additionalField: string]: unknown;
 }
 
@@ -66,6 +72,16 @@ export function decodeActivityList(input: unknown): readonly ActivityListItemWir
   return decodeEndpoint(ACTIVITIES_LIST_ENDPOINT, () =>
     expectArray(input, "activities response").map((item, index) => decodeActivityListItem(item, index))
   );
+}
+
+export function decodeActivityCount(input: unknown): ActivityCountWire {
+  return decodeEndpoint(ACTIVITIES_COUNT_ENDPOINT, () => {
+    const record = expectRecord(input, "activities count response");
+    return {
+      ...record,
+      totalCount: expectNonNegativeInteger(record.totalCount, "activities count response totalCount")
+    };
+  });
 }
 
 export function decodeActivityDetails(input: unknown): ActivityDetailsWire {

@@ -31,8 +31,13 @@ live("authorized Garmin account satisfies every documented live data contract", 
 });
 
 live("activity pagination and filters are honored by Garmin", async () => {
-  const first = await runLive(["activities", "list", "--start", "0", "--limit", "20"]);
-  const second = await runLive(["activities", "list", "--start", "20", "--limit", "20"]);
+  const count = await runLive(["activities", "count"]);
+  assert.equal(count.meta.dataset, "activities.count");
+  assert.ok(Number.isSafeInteger(count.data.total));
+  assert.ok(count.data.total >= 0);
+
+  const first = await runLive(["activities", "list", "--offset", "0", "--limit", "20"]);
+  const second = await runLive(["activities", "list", "--offset", "20", "--limit", "20"]);
   assert.equal(first.meta.dataset, "activities");
   assert.equal(second.meta.dataset, "activities");
   const firstIds = new Set(first.data.items.map((item) => item.id));

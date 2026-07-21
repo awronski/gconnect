@@ -26,9 +26,10 @@ export interface ActivitySummary {
 export interface ActivityCollection {
   readonly items: readonly ActivitySummary[];
   readonly page: {
-    readonly start: number;
+    readonly offset: number;
     readonly limit: number;
-    readonly hasMore: boolean | null;
+    readonly returned: number;
+    readonly nextOffset: number | null;
   };
 }
 

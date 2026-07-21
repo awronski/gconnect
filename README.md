@@ -9,7 +9,7 @@ It is written in strict TypeScript and keeps authentication, downloads, data pro
 
 ## Features
 
-- Activities: lists, filters, chart details, and optional full-resolution polylines.
+- Activities: account-wide count, paginated lists and filters, chart details, and optional full-resolution polylines.
 - Sleep: score, stages, duration, respiration, Pulse Ox, and other daily fields returned by Garmin.
 - Daily health: heart rate, stress, Body Battery, respiration, and Pulse Ox.
 - Performance: training status and HRV.
@@ -66,6 +66,7 @@ The CLI prompts for the username, password, and MFA code when needed. Password i
 Download some data:
 
 ```sh
+gconnect activities count
 gconnect activities list --limit 20
 gconnect health sleep --date 2026-07-01
 gconnect health heart-rate --from 2026-07-01 --to 2026-07-07
@@ -91,6 +92,7 @@ The file is written to `.gconnect-private/outputs/sleep.json`. `--output` accept
 | `auth status --verify` | Inspect the redacted session and verify it against Garmin. |
 | `auth recover` | Recover authentication through the optional browser companion. |
 | `auth disconnect` | Remove all locally stored Garmin sessions. |
+| `activities count` | Return the account-wide total number of activities. |
 | `activities list` | List and filter activities. |
 | `activities get <id>` | Download activity chart details and optionally its polyline. |
 | `health sleep` | Download daily sleep data. |
@@ -126,15 +128,25 @@ gconnect system describe --command health.sleep
 ### Activity examples
 
 ```sh
+gconnect activities count
+
 gconnect activities list \
   --from 2026-07-01 \
   --to 2026-07-31 \
   --type walking \
   --limit 50
 
+gconnect activities list --offset 50 --limit 50
+
 gconnect activities get 123456789
 gconnect activities get 123456789 --include-polyline
 ```
+
+Activity pages remain in Garmin's native order; GConnect does not re-sort them. `--offset` is zero-based and
+`--limit` accepts 1–100 activities. Normalized list output reports `returned` and `nextOffset`; a `null`
+`nextOffset` means Garmin returned the final page. Use `activities count` once when an automation needs the
+account-wide total, then request only the pages it needs. The count is deliberately separate because Garmin's
+count endpoint is not verified to support the list command's date and activity-type filters.
 
 ### Raw data
 

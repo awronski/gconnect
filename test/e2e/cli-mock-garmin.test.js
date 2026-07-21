@@ -21,6 +21,7 @@ test("every data command runs through the real CLI against a deterministic Garmi
   const fixture = await createFixture(t);
   const cases = [
     { args: ["activities", "list", "--from", date, "--to", date, "--type", "walking"], dataset: "activities" },
+    { args: ["activities", "count"], dataset: "activities.count" },
     { args: ["activities", "get", "123", "--include-polyline"], dataset: "activity" },
     { args: ["health", "sleep", "--date", date], dataset: "sleep" },
     { args: ["health", "pulse-ox", "--date", date], dataset: "pulse-ox" },
@@ -513,6 +514,7 @@ function responseFor(pathname, query) {
     assert.equal(query.get("activityType"), "walking");
     return [{ activityId: 123, deviceId: 456, activityName: "Walk", activityType: { typeKey: "walking" } }];
   }
+  if (pathname.endsWith("/activities/count")) return { totalCount: 2000 };
   if (pathname.endsWith("/activity/123/details")) {
     return {
       activityId: 123,
